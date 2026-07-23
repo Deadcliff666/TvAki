@@ -1,1 +1,1020 @@
-# TvAki
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Catálogo TV Time</title>
+    <style>
+        /* ==========================================================================
+           1. ESTILOS GENERALES Y GRILLAS DINÁMICAS
+           ========================================================================== */
+        body {
+            background-color: #121212;
+            color: #ffffff;
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 8px;
+            padding-top: 60px;
+        }
+
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            gap: 12px;
+            padding: 4px;
+        }
+
+        .grid-compacto {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            padding: 4px;
+        }
+
+        .card {
+            background-color: #121212;
+            overflow: hidden;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            border-radius: 4px;
+        }
+
+        .card img {
+            width: 100%;
+            aspect-ratio: 2 / 3;
+            object-fit: cover;
+            display: block;
+        }
+
+        .card-historico {
+            position: relative;
+            border-radius: 4px;
+            overflow: hidden;
+            aspect-ratio: 2 / 3;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+            background-color: #1a1a1a;
+        }
+
+        .card-historico img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        .loading-text {
+            grid-column: span 3;
+            text-align: center;
+            padding: 20px;
+            color: #888;
+            font-size: 14px;
+            font-style: italic;
+        }
+
+        /* ==========================================================================
+           BARRA DE NAVEGACIÓN SUPERIOR FIJA
+           ========================================================================== */
+        .nav-tabs {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            z-index: 9999;
+            display: flex;
+            justify-content: space-around;
+            background-color: #0b0b0b;
+            border-bottom: 1px solid #222;
+            padding: 10px 0;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.7);
+        }
+
+        .tab-btn {
+            background: none;
+            border: none;
+            color: #888;
+            font-size: 13px;
+            font-weight: bold;
+            text-transform: uppercase;
+            padding: 6px 12px;
+            cursor: pointer;
+            transition: color 0.2s, border-bottom 0.2s;
+            border-bottom: 3px solid transparent;
+        }
+
+        .tab-btn.active {
+            color: #ffffff;
+            border-bottom: 3px solid #ffffff;
+        }
+
+        /* ==========================================================================
+           CONTROLES INFERIORES FLOTANTES
+           ========================================================================== */
+        .card-info {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            box-sizing: border-box;
+            padding: 6px 4px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: linear-gradient(to top, rgba(0, 0, 0, 0.8) 0%, rgba(0, 0, 0, 0.2) 70%, transparent 100%);
+            z-index: 10;
+        }
+
+        .status-btn {
+            border: none;
+            padding: 3px 5px;
+            border-radius: 3px;
+            color: #ffffff;
+            font-size: 8.5px;
+            font-weight: bold;
+            text-transform: uppercase;
+            cursor: pointer;
+            background-color: rgba(41, 128, 185, 0.45);
+            flex-shrink: 0;
+            width: auto;
+            text-align: center;
+        }
+        .status-viendo { background-color: rgba(200, 90, 23, 0.45); }
+        .status-espera { background-color: rgba(41, 128, 185, 0.45); }
+        .status-terminada { background-color: rgba(39, 174, 96, 0.45); }
+
+        .progress-container {
+            display: flex;
+            gap: 2px;
+            flex-shrink: 0;
+            align-items: center;
+        }
+
+        .progress-box {
+            display: flex;
+            align-items: center;
+            gap: 2px;
+            font-size: 10px;
+            color: #ffffff;
+            background: transparent;
+            padding: 0;
+        }
+
+        .btn-mini-menos {
+            background-color: rgba(35, 35, 35, 0.55);
+            color: #d0d0d0;
+            border: none;
+            width: 15px;
+            height: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 9px;
+            font-weight: bold;
+            border-radius: 2px;
+        }
+
+        /* ==========================================================================
+           BADGES FLOTANTES SUPERIORES
+           ========================================================================== */
+        .badge-left, .badge-right {
+            position: absolute;
+            top: 6px;
+            width: 22px;
+            height: 22px;
+            background: rgba(0, 0, 0, 0.45); 
+            border: none; 
+            border-radius: 3px;
+            text-align: center;
+            line-height: 22px;
+            font-weight: bold;
+            cursor: pointer;
+            z-index: 10;
+            font-size: 11px;
+        }
+        
+        .badge-left { left: 6px; color: #00e5ff; }
+        .badge-right { right: 6px; color: #e040fb; }
+
+        .badge-new {
+            display: none;
+            position: absolute;
+            top: 6px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(231, 76, 60, 0.9); 
+            color: #ffffff;
+            font-size: 7.5px;
+            font-weight: bold;
+            padding: 3px 5px;
+            border-radius: 3px;
+            text-transform: uppercase;
+            white-space: nowrap;
+            z-index: 10;
+        }
+
+        /* ==========================================================================
+           VENTANA EMERGENTE (IFRAME)
+           ========================================================================== */
+        #modal-flotante {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100vw; height: 100vh;
+            background: rgba(0, 0, 0, 0.55); 
+            backdrop-filter: blur(8px); 
+            z-index: 99999;
+        }
+
+        .contenido-modal {
+            position: relative;
+            width: 90%; height: 85%;
+            margin: 10% auto;
+            background: #121212;
+            border-radius: 12px;
+            border: 1px solid #333;
+            overflow: hidden;
+        }
+
+        .cerrar-modal {
+            position: absolute;
+            top: 10px; right: 15px;
+            color: #ff4444;
+            font-size: 30px;
+            font-weight: bold;
+            cursor: pointer;
+            z-index: 100000;
+        }
+/* Cuando estemos en la pestaña de mis series, convertimos el contenedor en una grilla de 3 columnas */
+#contenedor-principal.modo-mis-series {
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 8px !important;
+    padding: 10px !important;
+}
+
+/* Escondemos los textos y botones de las tarjetas interactivas SOLO en esta pestaña */
+#contenedor-principal.modo-mis-series .card .status-btn,
+#contenedor-principal.modo-mis-series .card .card-info,
+#contenedor-principal.modo-mis-series .card .btn-add,
+#contenedor-principal.modo-mis-series .card .btn-imdb {
+    display: none !important;
+}
+
+/* Ajuste para que las tarjetas se comporten puramente como pósters de fondo */
+#contenedor-principal.modo-mis-series .card {
+    height: auto !important;
+    aspect-ratio: 2 / 3 !important;
+    border: none !important;
+    background-size: cover !important;
+    box-shadow: none !important;
+}
+
+/* Ajuste para las celdas del mosaico histórico generado por JS */
+.card-historico {
+    width: 100%;
+    aspect-ratio: 2 / 3;
+    border-radius: 4px;
+}
+
+function filtrarCatalogo(pestana) {
+    // Iluminar la pestaña correcta arriba
+    const botones = document.querySelectorAll('.tab-btn');
+    botones.forEach(btn => btn.classList.remove('active'));
+    botones.forEach(btn => {
+        if(btn.textContent.trim().toLowerCase() === pestana.replace('-', ' ')) btn.classList.add('active');
+    });
+
+    const contPrincipal = document.getElementById('contenedor-principal');
+    const tarjetas = document.querySelectorAll('.card');
+
+    // Cambiar la clase del contenedor principal según la pestaña
+    if (contPrincipal) {
+        if (pestana === 'mis-series') {
+            contPrincipal.className = 'grid-terminadas'; // Aplica la grilla limpia para terminadas
+        } else {
+            contPrincipal.className = 'grid-container';  // Mantiene la grilla normal
+        }
+        contPrincipal.style.display = 'grid';
+    }
+
+    // Mostramos u ocultamos las tarjetas según su estado
+    tarjetas.forEach(tarjeta => {
+        const botonEstado = tarjeta.querySelector('.status-btn');
+        const esViendo = botonEstado && botonEstado.classList.contains('status-viendo');
+        const esEspera = botonEstado && botonEstado.classList.contains('status-espera');
+        const esTerminado = botonEstado && botonEstado.classList.contains('status-terminada');
+
+        if (pestana === 'viendo') {
+            tarjeta.style.display = esViendo ? 'flex' : 'none';
+        } else if (pestana === 'espera') {
+            tarjeta.style.display = esEspera ? 'flex' : 'none';
+        } else if (pestana === 'mis-series') {
+            tarjeta.style.display = esTerminado ? 'flex' : 'none';
+        } else {
+            tarjeta.style.display = 'none';
+        }
+    });
+}
+/* Esto recorta la imagen grande para que se vea como un póster individual */
+.card img {
+    width: 100%;
+    aspect-ratio: 2 / 3;
+    object-fit: cover;
+    object-position: top center; /* Esto fuerza a mostrar la parte de arriba de la imagen */
+    display: block;
+}
+/* Esto aplica solo a la celda que tiene el collage */
+.celda-collage img {
+    object-fit: cover;
+    /* Ajusta estos valores hasta que el póster de The Boys quede centrado */
+    object-position: 0% 0%; 
+}
+    </style>
+</head>
+<body>
+
+    <div class="nav-tabs">
+        <button class="tab-btn active" onclick="filtrarCatalogo('viendo')">Viendo</button>
+        <button class="tab-btn" onclick="filtrarCatalogo('espera')">Espera</button>
+        <button class="tab-btn" onclick="filtrarCatalogo('mis-series')">Mis Series</button>
+        <button class="tab-btn" onclick="filtrarCatalogo('anime')">Anime</button>
+    </div>
+    
+    <div id="contenedor-principal" class="grid-container">
+
+        <div class="card" data-id="fauda" data-calendario="2026-05-29">
+            <div class="badge-new">NEW</div>
+            <div class="badge-left" onclick="sumarCapituloNormal('fauda')">+</div>
+            <div class="badge-right" onclick="sumarTemporada('fauda')">⧉</div>
+            <img class="card-img" 
+                 src="https://images.justwatch.com/poster/8735390/s276/fauda.webp" 
+                 data-t1="https://images.justwatch.com/poster/8735390/s276/fauda.webp"
+                 data-t2="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSN1lPw1yiEeGu4K1M5xuYon4O9afkRq7tH8ZJcQSWS3srQrwjkKorPgzaD&s=10" 
+                  data-t3="https://images.justwatch.com/poster/185192361/s718/temporada-3.jpg" 
+                  data-t4="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRllYtkw1PHNa9VuiKxbywCp4wGTw-43luxy1opRBcEqBlwT3r2v1R3V3g-&s=10" 
+                  data-t5="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcS4WhoN1S165sSVIYYUroXiTQg7uU3kYQhuY51ilh6ARZqUNKRiyjXZ6Z1x&s=10" 
+                 alt="Fauda" onclick="abrirVentana('https://www.themoviedb.org/tv/69557-fauda/season/5')" style="cursor: pointer;">
+            <div class="card-info">
+                <button class="status-btn status-viendo" onclick="toggleEstado('fauda')">Viendo</button>
+                <div class="progress-container">
+                    <div class="progress-box"><button class="btn-mini-menos" onclick="restarTemporada('fauda')">-</button><span>T. <span class="temp-num">1</span></span></div>
+                    <div class="progress-box"><button class="btn-mini-menos" onclick="restarCapitulo('fauda')">-</button><span>Cap. <span class="cap-num">1</span></span></div>
+                </div>
+            </div>
+        </div>
+        
+
+<div class="card" data-id="lucky" data-calendario=",, 2026-07-21, 2026-07-28, 2026-08-04, 2026-08-11, 2026-08-18, 2026-08-25">
+    <div class="badge-new">NEW</div>
+    <div class="badge-left" onclick="sumarCapituloNormal('lucky')">+</div>
+    <div class="badge-right" onclick="sumarTemporada('lucky')">⧉</div>
+    <img src="https://pbs.twimg.com/media/HMa02AsWsAA94Ke.jpg"onclick="abrirVentana('https://www.themoviedb.org/tv/278624-lucky/season/1?language=es1')" style="cursor: pointer;">
+ <div class="card-info">
+        <button class="status-btn status-viendo" onclick="toggleEstado('lucky')">Viendo</button>
+        <div class="progress-container">
+            <div class="progress-box">
+                <button class="btn-mini-menos" onclick="restarTemporada('lucky')">-</button>
+                <span>T. <span class="temp-num">1</span></span>
+            </div>
+            <div class="progress-box">
+                <button class="btn-mini-menos" onclick="restarCapitulo('lucky')">-</button>
+                <span>Cap. <span class="cap-num">0</span></span>
+            </div>
+        </div>
+    </div>
+</div>
+        <div class="card" data-id="cape-fear" data-calendario="2026-05-29, 2026-06-05, 2026-06-12, 2026-06-19, 2026-06-26, 2026-07-03, 2026-07-10, 2026-07-17, 2026-07-24, 2026-07-31">
+            <div class="badge-new">NEW</div>
+            <div class="badge-left" onclick="sumarCapituloNormal('cape-fear')">+</div>
+            <div class="badge-right" onclick="sumarTemporada('cape-fear')">⧉</div>
+            <img src="https://a.ltrbxd.com/resized/film-poster/1/5/2/4/9/9/4/1524994-cape-fear-2026-0-600-0-900-crop.jpg?v=7f7aa1ba6c" alt="Cape Fear" onclick="abrirVentana('https://www.themoviedb.org/tv/277439-cape-fear/season/1')" style="cursor: pointer;">
+            <div class="card-info">
+                <button class="status-btn status-viendo" onclick="toggleEstado('cape-fear')">Viendo</button>
+                <div class="progress-container">
+                    <div class="progress-box"><button class="btn-mini-menos" onclick="restarTemporada('cape-fear')">-</button><span>T. <span class="temp-num">1</span></span></div>
+                    <div class="progress-box"><button class="btn-mini-menos" onclick="restarCapitulo('cape-fear')">-</button><span>Cap. <span class="cap-num">6</span></span></div>
+                </div>
+            </div>
+        </div>
+    <div class="card" data-id="terminator-tscc">
+    <div class="badge-new">NEW</div>
+    <div class="badge-left" onclick="sumarCapituloNormal('terminator-tscc')">+</div>
+    <div class="badge-right" onclick="sumarTemporada('terminator-tscc')">⧉</div>
+    <img src="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEgF35o6LcJdpFbon0EEYR67Tv4pRhsOMsYk5xmc9n6bMsaiofUBbvAbNqboYmyT8l-YqlnkqhA1j6_A6c_Wt-AJ4PDxqD9J6vo43dQ64ahqOp289C9qThwwHIJbAMCqlaJLDotLwp-MDXIk/s1600/08.jpg" style="cursor: pointer;" alt="Terminator: The Sarah Connor Chronicles">
+    <div class="card-info">
+        <button class="status-btn status-viendo" onclick="toggleEstado('terminator-tscc')">Viendo</button>
+        <div class="progress-container">
+            <div class="progress-box"><button class="btn-mini-menos" onclick="restarTemporada('terminator-tscc')">-</button><span>T. <span class="temp-num">1</span></span></div>
+            <div class="progress-box"><button class="btn-mini-menos" onclick="restarCapitulo('terminator-tscc')">-</button><span>Cap. <span class="cap-num">1</span></span></div>
+        </div>
+    </div>
+</div>
+        <div class="card" data-id="house-dragon" data-calendario=",, 2026-07-05, 2026-07-12, 2026-07-19, 2026-07-26, 2026-08-02, 2026-08-09">
+            <div class="badge-new">NEW</div>
+            <div class="badge-left" onclick="sumarCapituloNormal('house-dragon')">+</div>
+            <div class="badge-right" onclick="sumarTemporada('house-dragon')">⧉</div>
+            <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRkaAc2UWjbjM8DwIeRXNBBOSRkxhlw_QBz4meGS9lGKOsaM2_xDMcIZRk&s=10" alt="House of the Dragon" onclick="abrirVentana('https://www.themoviedb.org/tv/94997-house-of-the-dragon/season/3')" style="cursor: pointer;">
+            <div class="card-info">
+                <button class="status-btn status-viendo" onclick="toggleEstado('house-dragon')">Viendo</button>
+                <div class="progress-container">
+                    <div class="progress-box"><button class="btn-mini-menos" onclick="restarTemporada('house-dragon')">-</button><span>T. <span class="temp-num">3</span></span></div>
+                    <div class="progress-box"><button class="btn-mini-menos" onclick="restarCapitulo('house-dragon')">-</button><span>Cap. <span class="cap-num">3</span></span></div>
+                </div>
+            </div>
+        </div>
+<div class="card" data-id="theagency"  data-calendario="2026-07-2">
+    <div class="badge-new">NEW</div>
+    <div class="badge-left" onclick="sumarCapituloNormal('theagency')">+</div>
+    <div class="badge-right" onclick="sumarTemporada('theagency')">⧉</div>
+    <img class="card-img" 
+         src="https://resizing.flixster.com/Gv5l9lCiXer8hVXseLW8gfEgIZE=/ems.cHJkLWVtcy1hc3NldHMvdHZzZXJpZXMvNjQ5MDY3ZDMtNDYzNS00OTlmLWJmYmUtOTQ1N2NjMTM0MzI0LmpwZw==" 
+         data-t1="https://resizing.flixster.com/Gv5l9lCiXer8hVXseLW8gfEgIZE=/ems.cHJkLWVtcy1hc3NldHMvdHZzZXJpZXMvNjQ5MDY3ZDMtNDYzNS00OTlmLWJmYmUtOTQ1N2NjMTM0MzI0LmpwZw==" 
+         data-t2="https://resizing.flixster.com/-XZAfHZM39UwaGJIFWKAE8fS0ak=/v3/t/assets/p33159852_b_v12_ac.jpg" 
+         alt="The Agency" onclick="abrirVentana('https://www.themoviedb.org/tv/219971-theagency/season/1')" style="cursor: pointer;">
+    <div class="card-info">
+        <button class="status-btn status-viendo" onclick="toggleEstado('theagency')">Viendo</button>
+        <div class="progress-container">
+            <div class="progress-box"><button class="btn-mini-menos" onclick="restarTemporada('theagency')">-</button><span>T. <span class="temp-num">1</span></span></div>
+            <div class="progress-box"><button class="btn-mini-menos" onclick="restarCapitulo('theagency')">-</button><span>Cap. <span class="cap-num">1</span></span></div>
+        </div>
+    </div>
+</div>
+        <div class="card" data-id="ghost-shell" data-calendario="2026-07-07, 2026-07-14, 2026-07-21, 2026-07-28, 2026-08-04, 2026-08-11, 2026-08-18, 2026-08-25, 2026-09-01, 2026-09-08, 2026-09-15, 2026-09-22">
+            <div class="badge-new">NEW</div>
+            <div class="badge-left" onclick="sumarCapituloNormal('ghost-shell')">+</div>
+            <div class="badge-right" onclick="sumarTemporada('ghost-shell')">⧉</div>
+            <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTOswIIW9FLn-sGtmMCTFszpt2wAfOxAGYLf82k-tFpC71UfsgtvYN_V5tL&s=10" alt="Ghost in the Shell" onclick="abrirVentana('https://www.themoviedb.org/tv/255358/season/1')" style="cursor: pointer;">
+            <div class="card-info">
+                <button class="status-btn status-espera" onclick="toggleEstado('ghost-shell')">En espera</button>
+                <div class="progress-container">
+                    <div class="progress-box"><button class="btn-mini-menos" onclick="restarTemporada('ghost-shell')">-</button><span>T. <span class="temp-num">1</span></span></div>
+                    <div class="progress-box"><button class="btn-mini-menos" onclick="restarCapitulo('ghost-shell')">-</button><span>Cap. <span class="cap-num">1</span></span></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card" data-id="blade">
+            <div class="badge-left" onclick="sumarCapituloNormal('blade')">+</div>
+            <div class="badge-right" onclick="sumarTemporada('blade')">⧉</div>
+            <img src="https://i.pinimg.com/736x/9c/67/8c/9c678c643598ac4c69256cc046003b93.jpg" alt="Blades of the Guardians" onclick="abrirVentana('https://www.themoviedb.org/tv/107463/season/2')" style="cursor: pointer;">
+            <div class="card-info">
+                <button class="status-btn status-espera" onclick="toggleEstado('blade')">En espera</button>
+                <div class="progress-container">
+                    <div class="progress-box"><button class="btn-mini-menos" onclick="restarTemporada('blade')">-</button><span>T. <span class="temp-num">1</span></span></div>
+                    <div class="progress-box"><button class="btn-mini-menos" onclick="restarCapitulo('blade')">-</button><span>Cap. <span class="cap-num">8</span></span></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card" data-id="jojo-sbr" data-calendario="2026-09-18, 2026-09-25">
+            <div class="badge-left" onclick="sumarCapituloNormal('jojo-sbr')">+</div>
+            <div class="badge-right" onclick="sumarTemporada('jojo-sbr')">⧉</div>
+            <img src="https://pbs.twimg.com/media/HMXne1-XkAAvKYd.jpg" alt="JoJo Steel Ball Run" onclick="abrirVentana('https://www.themoviedb.org/tv/45790/season/6')" style="cursor: pointer;">
+            <div class="card-info">
+                <button class="status-btn status-espera" onclick="toggleEstado('jojo-sbr')">En espera</button>
+                <div class="progress-container">
+                    <div class="progress-box"><button class="btn-mini-menos" onclick="restarTemporada('jojo-sbr')">-</button><span>T. <span class="temp-num">1</span></span></div>
+                    <div class="progress-box"><button class="btn-mini-menos" onclick="restarCapitulo('jojo-sbr')">-</button><span>Cap. <span class="cap-num">2</span></span></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card" data-id="rent-girlfriend">
+            <div class="badge-left" onclick="sumarCapituloNormal('rent-girlfriend')">+</div>
+            <div class="badge-right" onclick="sumarTemporada('rent-girlfriend')">⧉</div>
+            <img src="https://m.media-amazon.com/images/M/MV5BNThiMDM2MTktNGMwYi00NTY3LWEyMzQtNDg1NDBlYWIwYTU3XkEyXkFqcGc@._V1_.jpg" alt="Rent-a-Girlfriend" onclick="abrirVentana('https://www.themoviedb.org/tv/96316/season/1' )" style="cursor: pointer;">
+            <div class="card-info">
+                <button class="status-btn status-viendo" onclick="toggleEstado('rent-girlfriend')">Viendo</button>
+                <div class="progress-container">
+                    <div class="progress-box">
+                        <button class="btn-mini-menos" onclick="restarTemporada('rent-girlfriend')">-</button>
+                        <span>T. <span class="temp-num">1</span></span>
+                    </div>
+                    <div class="progress-box">
+                        <button class="btn-mini-menos" onclick="restarCapitulo('rent-girlfriend')">-</button>
+                        <span>Cap. <span class="cap-num">1</span></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card" data-id="arcane">
+            <div class="badge-left" onclick="sumarCapituloNormal('arcane')">+</div>
+            <div class="badge-right" onclick="sumarTemporada('arcane')">⧉</div>
+            <img src="https://m.media-amazon.com/images/M/MV5BYjA2NzhlMDItNWRmZC00MzRjLWE3ZjAtZjBlZDAwOWY2ODdjXkEyXkFqcGc@._V1_FMjpg_UX1000_.jpg" alt="Arcane" onclick="abrirVentana('https://www.themoviedb.org/tv/94605-arcane/season/2' )" style="cursor: pointer;">
+            <div class="card-info">
+                <button class="status-btn status-viendo" onclick="toggleEstado('arcane')">Viendo</button>
+                <div class="progress-container">
+                    <div class="progress-box">
+                        <button class="btn-mini-menos" onclick="restarTemporada('arcane')">-</button>
+                        <span>T. <span class="temp-num">1</span></span>
+                    </div>
+                    <div class="progress-box">
+                        <button class="btn-mini-menos" onclick="restarCapitulo('arcane')">-</button>
+                        <span>Cap. <span class="cap-num">1</span></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card" data-id="slow-horses" data-calendario="2026-09-16, 2026-09-23, 2026-09-30, 2026-10-07, 2026-10-14, 2026-10-21">
+            <div class="badge-new">NEW</div>
+            <div class="badge-left" onclick="sumarCapituloNormal('slow-horses')">+</div>
+            <div class="badge-right" onclick="sumarTemporada('slow-horses')">⧉</div>
+            <img src="https://m.media-amazon.com/images/M/MV5BY2NkNTBiYWUtMGFiZS00MGI4LWE3YjMtZTU3NzhhZmEyYzlkXkEyXkFqcGc@._V1_.jpg" alt="Slow Horses" onclick="abrirVentana('https://www.themoviedb.org/tv/95480-slow-horses/season/6')" style="cursor: pointer;">
+            <div class="card-info">
+                <button class="status-btn status-viendo" onclick="toggleEstado('slow-horses')">Viendo</button>
+                <div class="progress-container">
+                    <div class="progress-box">
+                        <button class="btn-mini-menos" onclick="restarTemporada('slow-horses')">-</button>
+                        <span>T. <span class="temp-num">6</span></span>
+                    </div>
+                    <div class="progress-box">
+                        <button class="btn-mini-menos" onclick="restarCapitulo('slow-horses')">-</button><span>Cap. <span class="cap-num">1</span></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+           <div class="card" data-id="starwarsDarthmoul">
+            <div class="badge-new">NEW</div>
+            <div class="badge-left" onclick="sumarCapituloNormal('starwarsDarthmoul')">+</div>
+            <div class="badge-right" onclick="sumarTemporada('starwarsDarthmoul')">⧉</div>
+            <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQcQITeLLvyWthcUcVv7DiGiesKQjdg-xztxYuzNbM-Cf-XhcVFOaGaalBp&s=10" alt="Cape Fear" onclick="abrirVentana('https://www.themoviedb.org/tv/289219-maul-shadow-lord/season/11')" style="cursor: pointer;">
+            <div class="card-info">
+                <button class="status-btn status-viendo" onclick="toggleEstado('starwarsDarthmoul')">Viendo</button>
+                <div class="progress-container">
+                    <div class="progress-box">
+                        <button class="btn-mini-menos" onclick="restarTemporada('starwarsDarthmoul')">-</button>
+                        <span>T. <span class="temp-num">6</span></span>
+                    </div>
+                    <div class="progress-box">
+                        <button class="btn-mini-menos" onclick="restarCapitulo('starwarsDarthmoul')">-</button><span>Cap. <span class="cap-num">1</span></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+<div class="card" data-id="YOU" data-max-t="5" data-max-c="10">
+    <div class="badge-new">NEW</div>
+    <div class="badge-left" onclick="sumarCapituloNormal('YOU')">+</div>
+    <div class="badge-right" onclick="sumarTemporada('YOU')">⧉</div>
+    <img class="card-img" 
+         src="https://resizing.flixster.com/aUpfjOsoKS-6qISvYEMw_jB4Jd4=/ems.cHJkLWVtcy1hc3NldHMvdHZzZXJpZXMvNjVjNjI1ZjAtMTkwYy00MGQ2LTg4MWQtMzdjNjM5Y2IyYThhLmpwZw==" 
+         alt="You" onclick="abrirVentana('https://www.imdb.com/title/t0000000/')" style="cursor: pointer;">
+    <div class="card-info">
+        <!-- Botón clásico para alternar Viendo / En espera -->
+        <button class="status-btn status-viendo" onclick="toggleEstado('YOU')">Viendo</button>
+        
+
+        
+        <div class="progress-container">
+            <div class="progress-box"><button class="btn-mini-menos" onclick="restarTemporada('YOU')">-</button><span>T. <span class="temp-num">1</span></span></div>
+            <div class="progress-box"><button class="btn-mini-menos" onclick="restarCapitulo('YOU')">-</button><span>Cap. <span class="cap-num">1</span></span></div>
+        </div>
+    </div>
+</div>
+        <div class="card" data-id="tomb-raider" data-calendario="">
+            <div class="badge-new">NEW</div>
+            <div class="badge-left" onclick="sumarCapituloNormal('tomb-raider')">+</div>
+            <div class="badge-right" onclick="sumarTemporada('tomb-raider')">⧉</div>
+            <img src="https://resizing.flixster.com/h545BOP0J_eXLK24G2_szHYNXrk=/fit-in/352x330/v2/https://resizing.flixster.com/-XZAfHZM39UwaGJIFWKAE8fS0ak=/v3/t/assets/p26479112_b_v10_aa.jpg" alt="Tomb Raider" onclick="abrirVentana('https://www.themoviedb.org/tv/117830-tomb-raider-the-legend-of-lara-croft/seasons')" style="cursor: pointer;">
+            <div class="card-info">
+                <button class="status-btn status-viendo" onclick="toggleEstado('tomb-raider')">Viendo</button>
+                <div class="progress-container">
+                    <div class="progress-box">
+                        <button class="btn-mini-menos" onclick="restarTemporada('tomb-raider')">-</button>
+                        <span>T. <span class="temp-num">1</span></span>
+                    </div>
+                    <div class="progress-box">
+                        <button class="btn-mini-menos" onclick="restarCapitulo('tomb-raider')">-</button>
+                        <span>Cap. <span class="cap-num">1</span></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card" data-id="chucky" data-calendario="">
+            <div class="badge-new">NEW</div>
+            <div class="badge-left" onclick="sumarCapituloNormal('chucky')">+</div>
+            <div class="badge-right" onclick="sumarTemporada('chucky')">⧉</div>
+            <img src="https://upload.wikimedia.org/wikipedia/en/thumb/0/06/Chucky_Season_1.jpg/250px-Chucky_Season_1.jpg" alt="Chucky" onclick="abrirVentana('https://www.themoviedb.org/tv/90462-chucky/seasons')" style="cursor: pointer;">
+            <div class="card-info">
+                <button class="status-btn status-viendo" onclick="toggleEstado('chucky')">Viendo</button>
+                <div class="progress-container">
+                    <div class="progress-box">
+                        <button class="btn-mini-menos" onclick="restarTemporada('chucky')">-</button>
+                        <span>T. <span class="temp-num">1</span></span>
+                    </div>
+                    <div class="progress-box">
+                        <button class="btn-mini-menos" onclick="restarCapitulo('chucky')">-</button>
+                        <span>Cap. <span class="cap-num">1</span></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+<div class="card" data-id="the-boys" data-calendario="">
+    <div class="badge-new">NEW</div>
+    <div class="badge-left" onclick="sumarCapituloNormal('the-boys')">+</div>
+    <div class="badge-right" onclick="sumarTemporada('the-boys')">⧉</div>
+    
+    <div onclick="abrirVentana('https://www.themoviedb.org/tv/76479-the-boys')" 
+         style="
+            cursor: pointer; 
+            width: 100%; 
+            aspect-ratio: 2 / 3; /* Mantiene la proporción perfecta en cualquier pantalla */
+            background-image: url('https://images4.imagebam.com/4e/05/51/ME1EH3BA_o.jpg'); 
+            background-size: 300% auto; 
+            background-position: 0% 0%; 
+            background-repeat: no-repeat;
+            border-top-left-radius: 8px; 
+            border-top-right-radius: 8px;
+         ">
+    </div>
+
+    <div class="card-info">
+        <button class="status-btn status-viendo" onclick="toggleEstado('the-boys')">Viendo</button>
+        <div class="progress-container">
+            <div class="progress-box">
+                <button class="btn-mini-menos" onclick="restarTemporada('the-boys')">-</button>
+                <span>T. <span class="temp-num">1</span></span>
+            </div>
+            <div class="progress-box">
+                <button class="btn-mini-menos" onclick="restarCapitulo('the-boys')">-</button>
+                <span>Cap. <span class="cap-num">1</span></span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card" data-id="amadeus" data-calendario="">
+    <div class="badge-new">NEW</div>
+    <div class="badge-left" onclick="sumarCapituloNormal('amadeus')">+</div>
+    <div class="badge-right" onclick="sumarTemporada('amadeus')">⧉</div>
+    <div style="width: 100%; aspect-ratio: 2/3; background-image: url('https://images4.imagebam.com/4e/05/51/ME1EH3BA_o.jpg'); background-size: 300% auto; background-position: 50% 0%; background-repeat: no-repeat; border-top-left-radius: 8px; border-top-right-radius: 8px;"></div>
+    <div class="card-info">
+        <button class="status-btn status-viendo" onclick="toggleEstado('amadeus')">Viendo</button>
+        <div class="progress-container"><div class="progress-box"><button class="btn-mini-menos" onclick="restarTemporada('amadeus')">-</button><span>T. <span class="temp-num">1</span></span></div><div class="progress-box"><button class="btn-mini-menos" onclick="restarCapitulo('amadeus')">-</button><span>Cap. <span class="cap-num">1</span></span></div></div>
+    </div>
+</div>
+
+<div class="card" data-id="game-of-thrones" data-calendario="">
+    <div class="badge-new">NEW</div>
+    <div class="badge-left" onclick="sumarCapituloNormal('game-of-thrones')">+</div>
+    <div class="badge-right" onclick="sumarTemporada('game-of-thrones')">⧉</div>
+    <div style="width: 100%; aspect-ratio: 2/3; background-image: url('https://images4.imagebam.com/4e/05/51/ME1EH3BA_o.jpg'); background-size: 300% auto; background-position: 100% 0%; background-repeat: no-repeat; border-top-left-radius: 8px; border-top-right-radius: 8px;"></div>
+    <div class="card-info">
+        <button class="status-btn status-viendo" onclick="toggleEstado('game-of-thrones')">Viendo</button>
+        <div class="progress-container"><div class="progress-box"><button class="btn-mini-menos" onclick="restarTemporada('game-of-thrones')">-</button><span>T. <span class="temp-num">1</span></span></div><div class="progress-box"><button class="btn-mini-menos" onclick="restarCapitulo('game-of-thrones')">-</button><span>Cap. <span class="cap-num">1</span></span></div></div>
+    </div>
+</div>
+<div class="card" data-id="the-bad-batch" data-calendario="">
+    <div class="badge-new">NEW</div>
+    <div class="badge-left" onclick="sumarCapituloNormal('the-bad-batch')">+</div>
+    <div class="badge-right" onclick="sumarTemporada('the-bad-batch')">⧉</div>
+    <div style="width: 100%; aspect-ratio: 2/3; background-image: url('https://images4.imagebam.com/4e/05/51/ME1EH3BA_o.jpg'); background-size: 300% auto; background-position: 0% 9.09%; background-repeat: no-repeat; border-top-left-radius: 8px; border-top-right-radius: 8px;"></div>
+    <div class="card-info">
+        <button class="status-btn status-viendo" onclick="toggleEstado('the-bad-batch')">Viendo</button>
+        <div class="progress-container"><div class="progress-box"><button class="btn-mini-menos" onclick="restarTemporada('the-bad-batch')">-</button><span>T. <span class="temp-num">1</span></span></div><div class="progress-box"><button class="btn-mini-menos" onclick="restarCapitulo('the-bad-batch')">-</button><span>Cap. <span class="cap-num">1</span></span></div></div>
+    </div>
+</div>
+<div class="card" data-id="spartacus" data-calendario="">
+    <div class="badge-new">NEW</div>
+    <div class="badge-left" onclick="sumarCapituloNormal('spartacus')">+</div>
+    <div class="badge-right" onclick="sumarTemporada('spartacus')">⧉</div>
+    <div style="width: 100%; aspect-ratio: 2/3; background-image: url('https://images4.imagebam.com/4e/05/51/ME1EH3BA_o.jpg'); background-size: 300% auto; background-position: 50% 9.09%; background-repeat: no-repeat; border-top-left-radius: 8px; border-top-right-radius: 8px;"></div>
+    <div class="card-info">
+        <button class="status-btn status-viendo" onclick="toggleEstado('spartacus')">Viendo</button>
+        <div class="progress-container"><div class="progress-box"><button class="btn-mini-menos" onclick="restarTemporada('spartacus')">-</button><span>T. <span class="temp-num">1</span></span></div><div class="progress-box"><button class="btn-mini-menos" onclick="restarCapitulo('spartacus')">-</button><span>Cap. <span class="cap-num">1</span></span></div></div>
+    </div>
+</div>
+<div class="card" data-id="mussolini" data-calendario="">
+    <div class="badge-new">NEW</div>
+    <div class="badge-left" onclick="sumarCapituloNormal('mussolini')">+</div>
+    <div class="badge-right" onclick="sumarTemporada('mussolini')">⧉</div>
+    <div style="width: 100%; aspect-ratio: 2/3; background-image: url('https://images4.imagebam.com/4e/05/51/ME1EH3BA_o.jpg'); background-size: 300% auto; background-position: 100% 9.09%; background-repeat: no-repeat; border-top-left-radius: 8px; border-top-right-radius: 8px;"></div>
+    <div class="card-info">
+        <button class="status-btn status-viendo" onclick="toggleEstado('mussolini')">Viendo</button>
+        <div class="progress-container"><div class="progress-box"><button class="btn-mini-menos" onclick="restarTemporada('mussolini')">-</button><span>T. <span class="temp-num">1</span></span></div><div class="progress-box"><button class="btn-mini-menos" onclick="restarCapitulo('mussolini')">-</button><span>Cap. <span class="cap-num">1</span></span></div></div>
+    </div>
+</div>
+<div class="card" data-id="squid-game" data-calendario="">
+    <div class="badge-new">NEW</div>
+    <div class="badge-left" onclick="sumarCapituloNormal('squid-game')">+</div>
+    <div class="badge-right" onclick="sumarTemporada('squid-game')">⧉</div>
+    <div style="width: 100%; aspect-ratio: 2/3; background-image: url('https://images4.imagebam.com/4e/05/51/ME1EH3BA_o.jpg'); background-size: 300% auto; background-position: 0% 18.18%; background-repeat: no-repeat; border-top-left-radius: 8px; border-top-right-radius: 8px;"></div>
+    <div class="card-info">
+        <button class="status-btn status-viendo" onclick="toggleEstado('squid-game')">Viendo</button>
+        <div class="progress-container"><div class="progress-box"><button class="btn-mini-menos" onclick="restarTemporada('squid-game')">-</button><span>T. <span class="temp-num">1</span></span></div><div class="progress-box"><button class="btn-mini-menos" onclick="restarCapitulo('squid-game')">-</button><span>Cap. <span class="cap-num">1</span></span></div></div>
+    </div>
+</div>
+<div class="card" data-id="chespirito" data-calendario="">
+    <div class="badge-new">NEW</div>
+    <div class="badge-left" onclick="sumarCapituloNormal('chespirito')">+</div>
+    <div class="badge-right" onclick="sumarTemporada('chespirito')">⧉</div>
+    <div style="width: 100%; aspect-ratio: 2/3; background-image: url('https://images4.imagebam.com/4e/05/51/ME1EH3BA_o.jpg'); background-size: 300% auto; background-position: 50% 18.18%; background-repeat: no-repeat; border-top-left-radius: 8px; border-top-right-radius: 8px;"></div>
+    <div class="card-info">
+        <button class="status-btn status-viendo" onclick="toggleEstado('chespirito')">Viendo</button>
+        <div class="progress-container"><div class="progress-box"><button class="btn-mini-menos" onclick="restarTemporada('chespirito')">-</button><span>T. <span class="temp-num">1</span></span></div><div class="progress-box"><button class="btn-mini-menos" onclick="restarCapitulo('chespirito')">-</button><span>Cap. <span class="cap-num">1</span></span></div></div>
+    </div>
+</div>
+<div class="card" data-id="andor" data-calendario="">
+    <div class="badge-new">NEW</div>
+    <div class="badge-left" onclick="sumarCapituloNormal('andor')">+</div>
+    <div class="badge-right" onclick="sumarTemporada('andor')">⧉</div>
+    <div style="width: 100%; aspect-ratio: 2/3; background-image: url('https://images4.imagebam.com/4e/05/51/ME1EH3BA_o.jpg'); background-size: 300% auto; background-position: 100% 18.18%; background-repeat: no-repeat; border-top-left-radius: 8px; border-top-right-radius: 8px;"></div>
+    <div class="card-info">
+        <button class="status-btn status-viendo" onclick="toggleEstado('andor')">Viendo</button>
+        <div class="progress-container"><div class="progress-box"><button class="btn-mini-menos" onclick="restarTemporada('andor')">-</button><span>T. <span class="temp-num">1</span></span></div><div class="progress-box"><button class="btn-mini-menos" onclick="restarCapitulo('andor')">-</button><span>Cap. <span class="cap-num">1</span></span></div></div>
+    </div>
+</div>
+<div class="card" data-id="gundam" data-calendario="">
+    <div class="badge-new">NEW</div>
+    <div class="badge-left" onclick="sumarCapituloNormal('gundam')">+</div>
+    <div class="badge-right" onclick="sumarTemporada('gundam')">⧉</div>
+    <div style="width: 100%; aspect-ratio: 2/3; background-image: url('https://images4.imagebam.com/4e/05/51/ME1EH3BA_o.jpg'); background-size: 300% auto; background-position: 0% 27.27%; background-repeat: no-repeat; border-top-left-radius: 8px; border-top-right-radius: 8px;"></div>
+    <div class="card-info">
+        <button class="status-btn status-viendo" onclick="toggleEstado('gundam')">Viendo</button>
+        <div class="progress-container"><div class="progress-box"><button class="btn-mini-menos" onclick="restarTemporada('gundam')">-</button><span>T. <span class="temp-num">1</span></span></div><div class="progress-box"><button class="btn-mini-menos" onclick="restarCapitulo('gundam')">-</button><span>Cap. <span class="cap-num">1</span></span></div></div>
+    </div>
+</div>
+<div class="card" data-id="serie-11" data-calendario="">
+    <div class="badge-new">NEW</div>
+    <div class="badge-left" onclick="sumarCapituloNormal('serie-11')">+</div>
+    <div class="badge-right" onclick="sumarTemporada('serie-11')">⧉</div>
+    <div style="width: 100%; aspect-ratio: 2/3; background-image: url('https://images4.imagebam.com/4e/05/51/ME1EH3BA_o.jpg'); background-size: 300% auto; background-position: 50% 27.27%; background-repeat: no-repeat; border-top-left-radius: 8px; border-top-right-radius: 8px;"></div>
+    <div class="card-info">
+        <button class="status-btn status-viendo" onclick="toggleEstado('serie-11')">Viendo</button>
+        <div class="progress-container"><div class="progress-box"><button class="btn-mini-menos" onclick="restarTemporada('serie-11')">-</button><span>T. <span class="temp-num">1</span></span></div><div class="progress-box"><button class="btn-mini-menos" onclick="restarCapitulo('serie-11')">-</button><span>Cap. <span class="cap-num">1</span></span></div></div>
+    </div>
+</div>
+<div class="card" data-id="serie-12" data-calendario="">
+    <div class="badge-new">NEW</div>
+    <div class="badge-left" onclick="sumarCapituloNormal('serie-12')">+</div>
+    <div class="badge-right" onclick="sumarTemporada('serie-12')">⧉</div>
+    <div style="width: 100%; aspect-ratio: 2/3; background-image: url('https://images4.imagebam.com/4e/05/51/ME1EH3BA_o.jpg'); background-size: 300% auto; background-position: 100% 27.27%; background-repeat: no-repeat; border-top-left-radius: 8px; border-top-right-radius: 8px;"></div>
+    <div class="card-info">
+        <button class="status-btn status-viendo" onclick="toggleEstado('serie-12')">Viendo</button>
+        <div class="progress-container"><div class="progress-box"><button class="btn-mini-menos" onclick="restarTemporada('serie-12')">-</button><span>T. <span class="temp-num">1</span></span></div><div class="progress-box"><button class="btn-mini-menos" onclick="restarCapitulo('serie-12')">-</button><span>Cap. <span class="cap-num">1</span></span></div></div>
+    </div>
+</div>
+<div class="card" data-id="serie-13" data-calendario="">
+    <div class="badge-new">NEW</div>
+    <div class="badge-left" onclick="sumarCapituloNormal('serie-13')">+</div>
+    <div class="badge-right" onclick="sumarTemporada('serie-13')">⧉</div>
+    <div style="width: 100%; aspect-ratio: 2/3; background-image: url('https://images4.imagebam.com/4e/05/51/ME1EH3BA_o.jpg'); background-size: 300% auto; background-position: 0% 36.36%; background-repeat: no-repeat; border-top-left-radius: 8px; border-top-right-radius: 8px;"></div>
+    <div class="card-info">
+        <button class="status-btn status-viendo" onclick="toggleEstado('serie-13')">Viendo</button>
+        <div class="progress-container"><div class="progress-box"><button class="btn-mini-menos" onclick="restarTemporada('serie-13')">-</button><span>T. <span class="temp-num">1</span></span></div><div class="progress-box"><button class="btn-mini-menos" onclick="restarCapitulo('serie-13')">-</button><span>Cap. <span class="cap-num">1</span></span></div></div>
+    </div>
+</div>
+<div class="card" data-id="serie-14" data-calendario="">
+    <div class="badge-new">NEW</div>
+    <div class="badge-left" onclick="sumarCapituloNormal('serie-14')">+</div>
+    <div class="badge-right" onclick="sumarTemporada('serie-14')">⧉</div>
+    <div style="width: 100%; aspect-ratio: 2/3; background-image: url('https://images4.imagebam.com/4e/05/51/ME1EH3BA_o.jpg'); background-size: 300% auto; background-position: 50% 36.36%; background-repeat: no-repeat; border-top-left-radius: 8px; border-top-right-radius: 8px;"></div>
+    <div class="card-info">
+        <button class="status-btn status-viendo" onclick="toggleEstado('serie-14')">Viendo</button>
+        <div class="progress-container"><div class="progress-box"><button class="btn-mini-menos" onclick="restarTemporada('serie-14')">-</button><span>T. <span class="temp-num">1</span></span></div><div class="progress-box"><button class="btn-mini-menos" onclick="restarCapitulo('serie-14')">-</button><span>Cap. <span class="cap-num">1</span></span></div></div>
+    </div>
+</div>
+<div class="card" data-id="serie-15" data-calendario="">
+    <div class="badge-new">NEW</div>
+    <div class="badge-left" onclick="sumarCapituloNormal('serie-15')">+</div>
+    <div class="badge-right" onclick="sumarTemporada('serie-15')">⧉</div>
+    <div style="width: 100%; aspect-ratio: 2/3; background-image: url('https://images4.imagebam.com/4e/05/51/ME1EH3BA_o.jpg'); background-size: 300% auto; background-position: 100% 36.36%; background-repeat: no-repeat; border-top-left-radius: 8px; border-top-right-radius: 8px;"></div>
+    <div class="card-info">
+        <button class="status-btn status-viendo" onclick="toggleEstado('serie-15')">Viendo</button>
+        <div class="progress-container"><div class="progress-box"><button class="btn-mini-menos" onclick="restarTemporada('serie-15')">-</button><span>T. <span class="temp-num">1</span></span></div><div class="progress-box"><button class="btn-mini-menos" onclick="restarCapitulo('serie-15')">-</button><span>Cap. <span class="cap-num">1</span></span></div></div>
+    </div>
+</div>
+<div class="card" data-id="serie-16" data-calendario="">
+    <div class="badge-new">NEW</div>
+    <div class="badge-left" onclick="sumarCapituloNormal('serie-16')">+</div>
+    <div class="badge-right" onclick="sumarTemporada('serie-16')">⧉</div>
+    <div style="width: 100%; aspect-ratio: 2/3; background-image: url('https://images4.imagebam.com/4e/05/51/ME1EH3BA_o.jpg'); background-size: 300% auto; background-position: 0% 45.45%; background-repeat: no-repeat; border-top-left-radius: 8px; border-top-right-radius: 8px;"></div>
+    <div class="card-info">
+        <button class="status-btn status-viendo" onclick="toggleEstado('serie-16')">Viendo</button>
+        <div class="progress-container"><div class="progress-box"><button class="btn-mini-menos" onclick="restarTemporada('serie-16')">-</button><span>T. <span class="temp-num">1</span></span></div><div class="progress-box"><button class="btn-mini-menos" onclick="restarCapitulo('serie-16')">-</button><span>Cap. <span class="cap-num">1</span></span></div></div>
+    </div>
+</div>
+<div class="card" data-id="serie-17" data-calendario="">
+    <div class="badge-new">NEW</div>
+    <div class="badge-left" onclick="sumarCapituloNormal('serie-17')">+</div>
+    <div class="badge-right" onclick="sumarTemporada('serie-17')">⧉</div>
+    <div style="width: 100%; aspect-ratio: 2/3; background-image: url('https://images4.imagebam.com/4e/05/51/ME1EH3BA_o.jpg'); background-size: 300% auto; background-position: 50% 45.45%; background-repeat: no-repeat; border-top-left-radius: 8px; border-top-right-radius: 8px;"></div>
+    <div class="card-info">
+        <button class="status-btn status-viendo" onclick="toggleEstado('serie-17')">Viendo</button>
+        <div class="progress-container"><div class="progress-box"><button class="btn-mini-menos" onclick="restarTemporada('serie-17')">-</button><span>T. <span class="temp-num">1</span></span></div><div class="progress-box"><button class="btn-mini-menos" onclick="restarCapitulo('serie-17')">-</button><span>Cap. <span class="cap-num">1</span></span></div></div>
+    </div>
+</div>
+<div class="card" data-id="serie-18" data-calendario="">
+    <div class="badge-new">NEW</div>
+    <div class="badge-left" onclick="sumarCapituloNormal('serie-18')">+</div>
+    <div class="badge-right" onclick="sumarTemporada('serie-18')">⧉</div>
+    <div style="width: 100%; aspect-ratio: 2/3; background-image: url('https://images4.imagebam.com/4e/05/51/ME1EH3BA_o.jpg'); background-size: 300% auto; background-position: 100% 45.45%; background-repeat: no-repeat; border-top-left-radius: 8px; border-top-right-radius: 8px;"></div>
+    <div class="card-info">
+        <button class="status-btn status-viendo" onclick="toggleEstado('serie-18')">Viendo</button>
+        <div class="progress-container"><div class="progress-box"><button class="btn-mini-menos" onclick="restarTemporada('serie-18')">-</button><span>T. <span class="temp-num">1</span></span></div><div class="progress-box"><button class="btn-mini-menos" onclick="restarCapitulo('serie-18')">-</button><span>Cap. <span class="cap-num">1</span></span></div></div>
+    </div>
+</div>
+<div class="card" data-id="serie-19" data-calendario="">
+    <div class="badge-new">NEW</div>
+    <div class="badge-left" onclick="sumarCapituloNormal('serie-19')">+</div>
+    <div class="badge-right" onclick="sumarTemporada('serie-19')">⧉</div>
+    <div style="width: 100%; aspect-ratio: 2/3; background-image: url('https://images4.imagebam.com/4e/05/51/ME1EH3BA_o.jpg'); background-size: 300% auto; background-position: 0% 54.54%; background-repeat: no-repeat; border-top-left-radius: 8px; border-top-right-radius: 8px;"></div>
+    <div class="card-info">
+        <button class="status-btn status-viendo" onclick="toggleEstado('serie-19')">Viendo</button>
+        <div class="progress-container"><div class="progress-box"><button class="btn-mini-menos" onclick="restarTemporada('serie-19')">-</button><span>T. <span class="temp-num">1</span></span></div><div class="progress-box"><button class="btn-mini-menos" onclick="restarCapitulo('serie-19')">-</button><span>Cap. <span class="cap-num">1</span></span></div></div>
+    </div>
+</div>
+<div class="card" data-id="serie-20" data-calendario="">
+    <div class="badge-new">NEW</div>
+    <div class="badge-left" onclick="sumarCapituloNormal('serie-20')">+</div>
+    <div class="badge-right" onclick="sumarTemporada('serie-20')">⧉</div>
+    <div style="width: 100%; aspect-ratio: 2/3; background-image: url('https://images4.imagebam.com/4e/05/51/ME1EH3BA_o.jpg'); background-size: 300% auto; background-position: 50% 54.54%; background-repeat: no-repeat; border-top-left-radius: 8px; border-top-right-radius: 8px;"></div>
+    <div class="card-info">
+        <button class="status-btn status-viendo" onclick="toggleEstado('serie-20')">Viendo</button>
+        <div class="progress-container"><div class="progress-box"><button class="btn-mini-menos" onclick="restarTemporada('serie-20')">-</button><span>T. <span class="temp-num">1</span></span></div><div class="progress-box"><button class="btn-mini-menos" onclick="restarCapitulo('serie-20')">-</button><span>Cap. <span class="cap-num">1</span></span></div></div>
+    </div>
+</div>
+<div class="card" data-id="serie-21" data-calendario="">
+    <div class="badge-new">NEW</div>
+    <div class="badge-left" onclick="sumarCapituloNormal('serie-21')">+</div>
+    <div class="badge-right" onclick="sumarTemporada('serie-21')">⧉</div>
+    <div style="width: 100%; aspect-ratio: 2/3; background-image: url('https://images4.imagebam.com/4e/05/51/ME1EH3BA_o.jpg'); background-size: 300% auto; background-position: 100% 54.54%; background-repeat: no-repeat; border-top-left-radius: 8px; border-top-right-radius: 8px;"></div>
+    <div class="card-info">
+        <button class="status-btn status-viendo" onclick="toggleEstado('serie-21')">Viendo</button>
+        <div class="progress-container"><div class="progress-box"><button class="btn-mini-menos" onclick="restarTemporada('serie-21')">-</button><span>T. <span class="temp-num">1</span></span></div><div class="progress-box"><button class="btn-mini-menos" onclick="restarCapitulo('serie-21')">-</button><span>Cap. <span class="cap-num">1</span></span></div></div>
+    </div>
+</div>
+<div class="card" data-id="serie-22" data-calendario="">
+    <div class="badge-new">NEW</div>
+    <div class="badge-left" onclick="sumarCapituloNormal('serie-22')">+</div>
+    <div class="badge-right" onclick="sumarTemporada('serie-22')">⧉</div>
+    <div style="width: 100%; aspect-ratio: 2/3; background-image: url('https://images4.imagebam.com/4e/05/51/ME1EH3BA_o.jpg'); background-size: 300% auto; background-position: 0% 63.63%; background-repeat: no-repeat; border-top-left-radius: 8px; border-top-right-radius: 8px;"></div>
+    <div class="card-info">
+        <button class="status-btn status-viendo" onclick="toggleEstado('serie-22')">Viendo</button>
+        <div class="progress-container"><div class="progress-box"><button class="btn-mini-menos" onclick="restarTemporada('serie-22')">-</button><span>T. <span class="temp-num">1</span></span></div><div class="progress-box"><button class="btn-mini-menos" onclick="restarCapitulo('serie-22')">-</button><span>Cap. <span class="cap-num">1</span></span></div></div>
+    </div>
+</div>
+<div class="card" data-id="serie-23" data-calendario="">
+    <div class="badge-new">NEW</div>
+    <div class="badge-left" onclick="sumarCapituloNormal('serie-23')">+</div>
+    <div class="badge-right" onclick="sumarTemporada('serie-23')">⧉</div>
+    <div style="width: 100%; aspect-ratio: 2/3; background-image: url('https://images4.imagebam.com/4e/05/51/ME1EH3BA_o.jpg'); background-size: 300% auto; background-position: 50% 63.63%; background-repeat: no-repeat; border-top-left-radius: 8px; border-top-right-radius: 8px;"></div>
+    <div class="card-info">
+        <button class="status-btn status-viendo" onclick="toggleEstado('serie-23')">Viendo</button>
+        <div class="progress-container"><div class="progress-box"><button class="btn-mini-menos" onclick="restarTemporada('serie-23')">-</button><span>T. <span class="temp-num">1</span></span></div><div class="progress-box"><button class="btn-mini-menos" onclick="restarCapitulo('serie-23')">-</button><span>Cap. <span class="cap-num">1</span></span></div></div>
+    </div>
+</div>
+<div class="card" data-id="serie-24" data-calendario="">
+    <div class="badge-new">NEW</div>
+    <div class="badge-left" onclick="sumarCapituloNormal('serie-24')">+</div>
+    <div class="badge-right" onclick="sumarTemporada('serie-24')">⧉</div>
+    <div style="width: 100%; aspect-ratio: 2/3; background-image: url('https://images4.imagebam.com/4e/05/51/ME1EH3BA_o.jpg'); background-size: 300% auto; background-position: 100% 63.63%; background-repeat: no-repeat; border-top-left-radius: 8px; border-top-right-radius: 8px;"></div>
+    <div class="card-info">
+        <button class="status-btn status-viendo" onclick="toggleEstado('serie-24')">Viendo</button>
+        <div class="progress-container"><div class="progress-box"><button class="btn-mini-menos" onclick="restarTemporada('serie-24')">-</button><span>T. <span class="temp-num">1</span></span></div><div class="progress-box"><button class="btn-mini-menos" onclick="restarCapitulo('serie-24')">-</button><span>Cap. <span class="cap-num">1</span></span></div></div>
+    </div>
+</div>
+<div class="card" data-id="serie-25" data-calendario="">
+    <div class="badge-new">NEW</div>
+    <div class="badge-left" onclick="sumarCapituloNormal('serie-25')">+</div>
+    <div class="badge-right" onclick="sumarTemporada('serie-25')">⧉</div>
+    <div style="width: 100%; aspect-ratio: 2/3; background-image: url('https://images4.imagebam.com/4e/05/51/ME1EH3BA_o.jpg'); background-size: 300% auto; background-position: 0% 72.72%; background-repeat: no-repeat; border-top-left-radius: 8px; border-top-right-radius: 8px;"></div>
+    <div class="card-info">
+        <button class="status-btn status-viendo" onclick="toggleEstado('serie-25')">Viendo</button>
+        <div class="progress-container"><div class="progress-box"><button class="btn-mini-menos" onclick="restarTemporada('serie-25')">-</button><span>T. <span class="temp-num">1</span></span></div><div class="progress-box"><button class="btn-mini-menos" onclick="restarCapitulo('serie-25')">-</button><span>Cap. <span class="cap-num">1</span></span></div></div>
+    </div>
+</div>
+<div class="card" data-id="serie-26" data-calendario="">
+    <div class="badge-new">NEW</div>
+    <div class="badge-left" onclick="sumarCapituloNormal('serie-26')">+</div>
+    <div class="badge-right" onclick="sumarTemporada('serie-26')">⧉</div>
+    <div style="width: 100%; aspect-ratio: 2/3; background-image: url('https://images4.imagebam.com/4e/05/51/ME1EH3BA_o.jpg'); background-size: 300% auto; background-position: 50% 72.72%; background-repeat: no-repeat; border-top-left-radius: 8px; border-top-right-radius: 8px;"></div>
+    <div class="card-info">
+        <button class="status-btn status-viendo" onclick="toggleEstado('serie-26')">Viendo</button>
+        <div class="progress-container"><div class="progress-box"><button class="btn-mini-menos" onclick="restarTemporada('serie-26')">-</button><span>T. <span class="temp-num">1</span></span></div><div class="progress-box"><button class="btn-mini-menos" onclick="restarCapitulo('serie-26')">-</button><span>Cap. <span class="cap-num">1</span></span></div></div>
+    </div>
+</div>
+<div class="card" data-id="serie-27" data-calendario="">
+    <div class="badge-new">NEW</div>
+    <div class="badge-left" onclick="sumarCapituloNormal('serie-27')">+</div>
+    <div class="badge-right" onclick="sumarTemporada('serie-27')">⧉</div>
+    <div style="width: 100%; aspect-ratio: 2/3; background-image: url('https://images4.imagebam.com/4e/05/51/ME1EH3BA_o.jpg'); background-size: 300% auto; background-position: 100% 72.72%; background-repeat: no-repeat; border-top-left-radius: 8px; border-top-right-radius: 8px;"></div>
+    <div class="card-info">
+        <button class="status-btn status-viendo" onclick="toggleEstado('serie-27')">Viendo</button>
+        <div class="progress-container"><div class="progress-box"><button class="btn-mini-menos" onclick="restarTemporada('serie-27')">-</button><span>T. <span class="temp-num">1</span></span></div><div class="progress-box"><button class="btn-mini-menos" onclick="restarCapitulo('serie-27')">-</button><span>Cap. <span class="cap-num">1</span></span></div></div>
+    </div>
+</div>
+<div class="card" data-id="serie-28" data-calendario="">
+    <div class="badge-new">NEW</div>
+    <div class="badge-left" onclick="sumarCapituloNormal('serie-28')">+</div>
+    <div class="badge-right" onclick="sumarTemporada('serie-28')">⧉</div>
+    <div style="width: 100%; aspect-ratio: 2/3; background-image: url('https://images4.imagebam.com/4e/05/51/ME1EH3BA_o.jpg'); background-size: 300% auto; background-position: 0% 81.81%; background-repeat: no-repeat; border-top-left-radius: 8px; border-top-right-radius: 8px;"></div>
+    <div class="card-info">
+        <button class="status-btn status-viendo" onclick="toggleEstado('serie-28')">Viendo</button>
+        <div class="progress-container"><div class="progress-box"><button class="btn-mini-menos" onclick="restarTemporada('serie-28')">-</button><span>T. <span class="temp-num">1</span></span></div><div class="progress-box"><button class="btn-mini-menos" onclick="restarCapitulo('serie-28')">-</button><span>Cap. <span class="cap-num">1</span></span></div></div>
+    </div>
+</div>
+<div class="card" data-id="serie-29" data-calendario="">
+    <div class="badge-new">NEW</div>
+    <div class="badge-left" onclick="sumarCapituloNormal('serie-29')">+</div>
+    <div class="badge-right" onclick="sumarTemporada('serie-29')">⧉</div>
+    <div style="width: 100%; aspect-ratio: 2/3; background-image: url('https://images4.imagebam.com/4e/05/51/ME1EH3BA_o.jpg'); background-size: 300% auto; background-position: 50% 81.81%; background-repeat: no-repeat; border-top-left-radius: 8px; border-top-right-radius: 8px;"></div>
+    <div class="card-info">
+        <button class="status-btn status-viendo" onclick="toggleEstado('serie-29')">Viendo</button>
+        <div class="progress-container"><div class="progress-box"><button class="btn-mini-menos" onclick="restarTemporada('serie-29')">-</button><span>T. <span class="temp-num">1</span></span></div><div class="progress-box"><button class="btn-mini-menos" onclick="restarCapitulo('serie-29')">-</button><span>Cap. <span class="cap-num">1</span></span></div></div>
+    </div>
+</div>
+<div class="card" data-id="serie-30" data-calendario="">
+    <div class="badge-new">NEW</div>
+    <div class="badge-left" onclick="sumarCapituloNormal('serie-30')">+</div>
+    <div class="badge-right" onclick="sumarTemporada('serie-30')">⧉</div>
+    <div style="width: 100%; aspect-ratio: 2/3; background-image: url('https://images4.imagebam.com/4e/05/51/ME1EH3BA_o.jpg'); background-size: 300% auto; background-position: 100% 81.81%; background-repeat: no-repeat; border-top-left-radius: 8px; border-top-right-radius: 8px;"></div>
+    <div class="card-info">
+        <button class="status-btn status-viendo" onclick="toggleEstado('serie-30')">Viendo</button>
+        <div class="progress-container"><div class="progress-box"><button class="btn-mini-menos" onclick="restarTemporada('serie-30')">-</button><span>T. <span class="temp-num">1</span></span></div><div class="progress-box"><button class="btn-mini-menos" onclick="restarCapitulo('serie-30')">-</button><span>Cap. <span class="cap-num">1</span></span></div></div>
+    </div>
+</div>
+<div class="card" data-id="serie-31" data-calendario="">
+    <div class="badge-new">NEW</div>
+    <div class="badge-left" onclick="sumarCapituloNormal('serie-31')">+</div>
+    <div class="badge-right" onclick="sumarTemporada('serie-31')">⧉</div>
+    <div style="width: 100%; aspect-ratio: 2/3; background-image: url('https://images4.imagebam.com/4e/05/51/ME1EH3BA_o.jpg'); background-size: 300% auto; background-position: 0% 90.9%; background-repeat: no-repeat; border-top-left-radius: 8px; border-top-right-radius: 8px;"></div>
+    <div class="card-info">
+        <button class="status-btn status-viendo" onclick="toggleEstado('serie-31')">Viendo</button>
+        <div class="progress-container"><div class="progress-box"><button class="btn-mini-menos" onclick="restarTemporada('serie-31')">-</button><span>T. <span class="temp-num">1</span></span></div><div class="progress-box"><button class="btn-mini-menos" onclick="restarCapitulo('serie-31')">-</button><span>Cap. <span class="cap-num">1</span></span></div></div>
+    </div>
+</div>
+<div class="card" data-id="serie-32" data-calendario="">
+    <div class="badge-new">NEW</div>
+    <div class="badge-left" onclick="sumarCapituloNormal('serie-32')">+</div>
+    <div class="badge-right" onclick="sumarTemporada('serie-32')">⧉</div>
+    <div style="width: 100%; aspect-ratio: 2/3; background-image: url('https://images4.imagebam.com/4e/05/51/ME1EH3BA_o.jpg'); background-size: 300% auto; background-position: 50% 90.9%; background-repeat: no-repeat; border-top-left-radius: 8px; border-top-right-radius: 8px;"></div>
+    <div class="card-info">
+        <button class="status-btn status-viendo" onclick="toggleEstado('serie-32')">Viendo</button>
+        <div class="progress-container"><div class="progress-box"><button class="btn-mini-menos" onclick="restarTemporada('serie-32')">-</button><span>T. <span class="temp-num">1</span></span></div><div class="progress-box"><button class="btn-mini-menos" onclick="restarCapitulo('serie-32')">-</button><span>Cap. <span class="cap-num">1</span></span></div></div>
+    </div>
+</div>
+
+
+
+<div class="card" data-id="serie-33" data-calendario="">
+    <div class="badge-new">NEW</div>
+    <div class="badge-left" onclick="sumarCapituloNormal('serie-33')">+</div>
+    <div class="badge-right" onclick="sumarTemporada('serie-33')">⧉</div>
+    <div style="width: 100%; aspect-ratio: 2/3; background-image: url('https://images4.imagebam.com/4e/05/51/ME1EH3BA_o.jpg'); background-size: 300% auto; background-position: 100% 90.9%; background-repeat: no-repeat; border-top-left-radius: 8px; border-top-right-radius: 8px;"></div>
+    <div class="card-info">
+        <button class="status-btn status-viendo" onclick="toggleEstado('serie-33')">Viendo</button>
+        <div class="progress-container"><div class="progress-box"><button class="btn-mini-menos" onclick="restarTemporada('serie-33')">-</button><span>T. <span class="temp-num">1</span></span></div><div class="progress-box"><button class="btn-mini-menos" onclick="restarCapitulo('serie-33')">-</button><span>Cap. <span class="cap-num">1</span></span></div></div>
+    </div>
+</div>
+<div class="card" data-id="serie-34" data-calendario="">
+    <div class="badge-new">NEW</div>
+    <div class="badge-left" onclick="sumarCapituloNormal('serie-34')">+</div>
+    <div class="badge-right" onclick="sumarTemporada('serie-34')">⧉</div>
+    <div style="width: 100%; aspect-ratio: 2/3; background-image: url('https://images4.imagebam.com/4e/05/51/ME1EH3BA_o.jpg'); background-size: 300% auto; background-position: 0% 100%; background-repeat: no-repeat; border-top-left-radius: 8px; border-top-right-radius: 8px;"></div>
+    <div class="card-info">
+        <button class="status-btn status-viendo" onclick="toggleEstado('serie-34')">Viendo</button>
+        <div class="progress-container"><div class="progress-box"><button class="btn-mini-menos" onclick="restarTemporada('serie-34')">-</button><span>T. <span class="temp-num">1</span></span></div><div class="progress-box"><button class="btn-mini-menos" onclick="restarCapitulo('serie-34')">-</button><span>Cap. <span class="cap-num">1</span></span></div></div>
+    </div>
+</div>
+<div class="card" data-id="serie-35" data-calendario="">
+    <div class="badge-new">NEW</div>
+    <div class="badge-left" onclick="sumarCapituloNormal('serie-35')">+</div>
+    <div class="badge-right" onclick="sumarTemporada('serie-35')">⧉</div>
+    <div style="width: 100%; aspect-ratio: 2/3; background-image: url('https://images4.imagebam.com/4e/05/51/ME1EH3BA_o.jpg'); background-size: 300% auto; background-position: 50% 100%; background-repeat: no-repeat; border-top-left-radius: 8px; border-top-right-radius: 8px;"></div>
+    <div class="card-info">
+        <button class="status-btn status-viendo" onclick="toggleEstado('serie-35')">Viendo</button>
+        <div class="progress-container"><div class="progress-box"><button class="btn-mini-menos" onclick="restarTemporada('serie-35')">-</button><span>T. <span class="temp-num">1</span></span></div><div class="progress-box"><button class="btn-mini-menos" onclick="restarCapitulo('serie-35')">-</button><span>Cap. <span class="cap-num">1</span></span></div></div>
+    </div>
+</div>
+
+
+
+             </div>
+
+
+
+
+    <div id="modal-flotante">
+        <div class="contenido-modal">
+            <span class="cerrar-modal" onclick="cerrarVentana()">&times;</span>
+            <iframe id="iframe-imdb" src="" style="width:100%; height:100%; border:none;"></iframe>
+        </div>
+    </div>
+
+
+<div id="contenedor-principal" class="grid-container">
+    <div id="grid-mis-series-vistas" style="display: contents;"></div>
+</div>
+
+
+<script src="app4.js"></script>
+
+
+
+</body>
+</html>
+<!DOCTYPE html>
