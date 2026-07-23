@@ -1017,4 +1017,3 @@ function filtrarCatalogo(pestana) {
 
 </body>
 </html>
-<!DOCTYPE html>
